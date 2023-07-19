@@ -17,20 +17,50 @@ class _reg:
 class Sen55:
     # 32 bit flags for errors, not used yet
     errors = 0
+    _address = 0x69
 
     def __init__(self) -> None:
         self.i2c = SoftI2C(scl=Pin(5), sda=Pin(4), freq=100_000)
 
     def start(self):
-        self.i2c.writeto(0x69, _reg.to_bytes(_reg.start_measurement))
+        self.__write_i2c(_reg.to_bytes(_reg.start_measurement))
         time.sleep(0.1)
 
-    def readVals(self):
-        self.i2c.writeto(0x69, _reg.to_bytes(_reg.read_values))
-        # wait for 50ms for the sensor to collect data
+    def __write_i2c(self, data: bytes) -> None:
+        try:
+            self.i2c.writeto(self._address, data)
+        except OSError:
+            self.errors |= 1
+        except Exception:
+            self.errors |= 2
+
+    def __read_i2c(self, num_bytes: int) -> bytes | None:
+        try:
+            _data = self.i2c.readfrom(self._address, num_bytes)
+        except OSError:
+            self.errors |= 4
+            return None
+        except Exception:
+            self.errors |= 8
+            return None
+        return _data
+
+    def __read_reg(self, reg: bytes | int, num_bytes: int) -> bytes | None:
+        if isinstance(reg, int):
+            reg = _reg.to_bytes(reg)
+        self.__write_i2c(reg)
+
         time.sleep(0.05)
+
+        return self.__read_i2c(num_bytes)
+
+    def readVals(self) -> list[float]:
         # read 24 bytes from the sensor
-        raw_data = self.i2c.readfrom(0x69, 24)
+        raw_data = self.__read_reg(_reg.read_values, 24)
+
+        if raw_data is None:  # error
+            return [0, 0, 0, 0, 0, 0, 0, 0]
+
         # remove every 3rd byte (checksum)
         data = bytes([raw_data[i] for i in range(len(raw_data)) if i % 3 != 2])
         # convert to 8 uint16_t:

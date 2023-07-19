@@ -1,48 +1,65 @@
 from sen55 import Sen55
 import time
+import machine
 
 sen55 = Sen55()
 sen55.start()
-timestamp = time.ticks_us()
+if sen55.errors != 0:
+    print("Error while starting sensor: ", sen55.errors)
+    time.sleep(1)
+    machine.soft_reset()
 
+
+def enclose(_f):
+    """
+    decorator function to enclose text returned by _f in curly
+    braces and add tab to each line
+    """
+    def wrapper(*args, **kwargs):
+        return '{\n' + '\n'.join(
+            ['  ' + line for line in _f(*args, **kwargs).split('\n')]
+            ) + '\n}'
+    return wrapper
+
+
+@enclose
+def values_to_json(vals: list) -> str:
+    # convert list of values to json
+    return ',\n'.join([f'"{k}": {v}' for k, v in zip(
+        ['pm1', 'pm2.5', 'pm4', 'pm10', 'rh', 'temp', 'voc', 'nox'],
+        vals
+    )])
+
+
+@enclose
+def format_output(
+        vals: list,
+        timestamp: int,
+        net_cycle_time_us: int,
+        errors: int
+        ) -> str:
+    text = f'"timestamp": {timestamp},\n'
+    text += f'"netCycleTimeUs": {net_cycle_time_us},\n'
+    text += f'"errors": {bin(errors)},\n'
+    text += '"device": ' + values_to_json(vals)
+    return text
+
+
+num_err = 0
 while True:
     timestamp = time.ticks_us()
-    pm1, pm25, pm4, pm10, hum, temp, voc, nox = sen55.readVals()
+    measurements = sen55.readVals()
+    if not any(measurements):
+        # no measurements available, restart is needed
+        num_err += 1
+        if num_err > 3:
+            print("Too many errors, restarting")
+            time.sleep(1)
+            machine.soft_reset()
+
+    pm1, pm25, pm4, pm10, hum, temp, voc, nox = measurements
     net_cycle_time_us = time.ticks_diff(time.ticks_us(), timestamp)
 
-    # print the values as JSON
-    # format:
-    # {
-    #     "timestamp" : 8672981, // timestamp_us_since_boot, uint64_t,
-    #     "netCycleTimeUs": 14, // netCycleTimeUs uint32_t,
-    #     "errors": "0b00000000000000000000000000000001", // device_errors, 32 flags
-    #     "device" : {
-    #             "pm1" : 10.5, // float,
-    #             "pm2.5" : 20.5, // float,
-    #             "pm4" : 30.6, // float,
-    #             "pm10" : 100.7, // float
-    #             "voc" : 15.0, // float
-    #             "nox" : 1.0, // float  
-    #             "rh" : 45, // float
-    #             "temp" : 23 // float
-    #     } 
-    # }
+    print(format_output(measurements, timestamp, net_cycle_time_us, sen55.errors))
 
-    print('{')
-    print('"timestamp":', timestamp, ',')
-    print('"netCycleTimeUs":', net_cycle_time_us, ',')
-    print('"errors":', bin(sen55.errors), ',')
-    print('"device": {')
-    print('"pm1":', pm1, ',')
-    print('"pm2.5":', pm25, ',')
-    print('"pm4":', pm4, ',')
-    print('"pm10":', pm10, ',')
-    print('"voc":', voc, ',')
-    print('"nox":', nox, ',')
-    print('"rh":', hum, ',')
-    print('"temp":', temp)
-    print('}')
-    print('}')
-    print()
     time.sleep(1 - net_cycle_time_us / 1_000_000)
-
