@@ -1,17 +1,18 @@
-from machine import Pin, SoftI2C
+from machine import Pin, I2C
 import time
+
 
 class _reg:
     product_name = 0xD014
-    serial_number = 0xD033 
-    read_values = 0x03c4
+    serial_number = 0xD033
+    read_values = 0x03C4
     start_measurement = 0x0021
     stop_measurement = 0x0104
-    read_device_status = 0xd206
+    read_device_status = 0xD206
 
     @staticmethod
     def to_bytes(val: int):
-        return val.to_bytes(2, 'big')
+        return val.to_bytes(2, "big")
 
 
 class Sen55:
@@ -20,7 +21,7 @@ class Sen55:
     _address = 0x69
 
     def __init__(self) -> None:
-        self.i2c = SoftI2C(scl=Pin(5), sda=Pin(4), freq=100_000)
+        self.i2c = I2C(id=0, scl=Pin(5), sda=Pin(4), freq=400_000)
 
     def start(self):
         self.__write_i2c(_reg.to_bytes(_reg.start_measurement))
@@ -64,8 +65,8 @@ class Sen55:
         # remove every 3rd byte (checksum)
         data = bytes([raw_data[i] for i in range(len(raw_data)) if i % 3 != 2])
         # convert to 8 uint16_t:
-        data2 = [data[i:i+2] for i in range(0, len(data), 2)]
-        data2 = [int.from_bytes(d, 'big') for d in data2]
+        data2 = [data[i : i + 2] for i in range(0, len(data), 2)]
+        data2 = [int.from_bytes(d, "big") for d in data2]
         # data2 contains data acc. to this table:
         # Byte # Datatype Scale factor Description
         # 0..1 big-endian, uint16 10 Mass Concentration PM1.0 [µg/m³]
