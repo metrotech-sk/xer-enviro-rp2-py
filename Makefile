@@ -25,7 +25,7 @@ NC := \033[0m # No Color
 # =====================================================
 
 .PHONY: install
-install:
+install: ## Install firmware to RPI-RP2 device
 	@echo "$(GREEN)Installing firmware to device...$(NC)"
 	@DEVICE=$$(lsblk -o NAME,LABEL -ln | grep RPI-RP2 | awk '{print $$1}' | sed 's/^└─//' | sed 's/^/\/dev\//' | head -1); \
 	if [ -z "$$DEVICE" ]; then \
@@ -97,9 +97,9 @@ help: ## Show this help message
 	@echo "$(BLUE)═══════════════════════════════════════════════$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Development:$(NC)"
-	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { if ($$1 ~ /^(monitor|debug|run)/) printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { if ($$1 ~ /^(monitor|install|run)/) printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(YELLOW)Production:$(NC)"
-	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { if ($$1 ~ /^(deploy)/) printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf ""} /^[a-zA-Z_-]+:.*?##/ { if ($$1 ~ /^(upload)/) printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
 	@echo "$(BLUE)For detailed information, see README.md$(NC)"
